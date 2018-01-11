@@ -1,3 +1,5 @@
+先做个简单的了解吧，实际上还用不到这么复杂的操作。
+
 # 一、include
 ```
 #include <glib.h>
@@ -31,5 +33,17 @@ GMainContext的单个迭代可以使用g_main_context_iteration()运行。在某
 
 这些函数的操作可以从状态图中看到，如图所示。
 
+![image](https://github.com/yuexiuya/Glib-API-zh/blob/master/image/main_loop_state.png?raw=true)
 
 在UNIX上，GLib mainloop与fork()不兼容。任何使用主循环的程序都必须从子程序中执行exec()或exit()，而不返回主循环。
+
+
+## 2.4 Memory management of sources
+
+对于传递给GSource的用户数据的内存管理有两种选择，可以将其传递给调用的回调函数。这些数据是在调用g_timeout_add()、g_timeout_add_full()、g_idle_add()等调用时提供的，通常使用g_source_set_callback()。该数据通常是“拥有”超时或空闲回调的对象，例如小部件或网络协议实现。在许多情况下，在这个拥有对象被销毁后调用回调函数是一个错误，因为这会导致释放内存的使用。
+
+首选的选项是存储由函数(如g_timeout_add()或g_source_attach()等函数返回的源ID，并使用g_source_remove()来显式地从主上下文中删除该源。这确保了在对象还活着的情况下只能调用回调。
+
+第二个选项是对回调中的对象进行强引用，并在回调的GDestroyNotify中释放它。这样可以确保在源完成之后，对象才能被保存，这将保证在最后一次调用它之后。GDestroyNotify是传递给GSource函数的“full”变体的另一个回调函数(例如，g_timeout_add_full())。当源代码最终完成时，它被调用，并被设计用于发布这样的引用。
+
+第二种方法的一个重要警告是，如果在调用GSource之前停止主循环，它将无限期地保留对象，这可能是不可取的。
